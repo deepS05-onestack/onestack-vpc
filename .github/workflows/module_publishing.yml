@@ -38,11 +38,12 @@ jobs:
         run: |
           if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
             DIFF_TARGET="HEAD~1"
-            CHANGED_MODULES=$(git diff --name-only --diff-filter=ACMR "${DIFF_TARGET}" \
-              | grep -E '(\.tf|MODULE)$' \
-              | xargs -r dirname \
-              | sort -u \
-              | xargs)
+            MATCHES=$(git diff --name-only --diff-filter=ACMR "${DIFF_TARGET}" | grep -E '(\.tf|MODULE)$' || true)
+            if [ -n "$MATCHES" ]; then
+              CHANGED_MODULES=$(printf '%s\n' "$MATCHES" | xargs -r dirname | sort -u | xargs)
+            else
+              CHANGED_MODULES=""
+            fi
           else
             CHANGED_MODULES="."
           fi
