@@ -11,6 +11,9 @@ permissions:
 jobs:
   modules-changed:
     runs-on: ubuntu-latest
+    outputs:
+      files: ${{ steps.get_changed_files.outputs.files }}
+      modules: ${{ steps.get_changed_modules.outputs.modules }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -65,7 +68,12 @@ jobs:
 
           EXIT_CODE=0
           for MODULE in ${CHANGED_MODULES}; do
-            if [[ ! "$CHANGED_FILES" =~ "${MODULE}/MODULE" ]]; then
+            if [ "$MODULE" = "." ]; then
+              if [[ ! "$CHANGED_FILES" =~ (^|[[:space:]])MODULE($|[[:space:]]) ]]; then
+                echo "Module not updated: root module"
+                EXIT_CODE=1
+              fi
+            elif [[ ! "$CHANGED_FILES" =~ "${MODULE}/MODULE" ]]; then
               echo "Module not updated: ${MODULE}"
               EXIT_CODE=1
             fi
@@ -88,13 +96,18 @@ jobs:
         shell: bash
         run: |
           MODULES="${{ needs.modules-changed.outputs.modules }}"
+          if [ -z "$MODULES" ]; then
+            echo "matrix={}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           METADATA="$(find ${MODULES} -name MODULE -print0 | xargs -0 -r cat | jq -s -c .)"
           echo "matrix=${METADATA}" >> "$GITHUB_OUTPUT"
 
   register-and-publish-module:
     needs: build-module-metadata
     runs-on: ubuntu-latest
-    if: ${{ needs.build-module-metadata.outputs.matrix != '' }}
+    if: ${{ needs.build-module-metadata.outputs.matrix != '' && needs.build-module-metadata.outputs.matrix != '[]' }}
     strategy:
       matrix:
         include: ${{ fromJson(needs.build-module-metadata.outputs.matrix) }}
