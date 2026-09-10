@@ -1,0 +1,124 @@
+name: module_publishing
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  modules-changed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: get_changed_files
+        shell: bash
+        run: |
+          DIFF_TARGET="HEAD~1"
+          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMR "${DIFF_TARGET}" | xargs)
+          echo "files=${CHANGED_FILES}" >> "$GITHUB_OUTPUT"
+
+      - name: Get changed modules
+        id: get_changed_modules
+        shell: bash
+        run: |
+          DIFF_TARGET="HEAD~1"
+          CHANGED_MODULES=$(git diff --name-only --diff-filter=ACMR "${DIFF_TARGET}" \
+            | grep -E '(\.tf|MODULE)$' \
+            | xargs -r dirname \
+            | sort -u \
+            | xargs)
+          echo "modules=${CHANGED_MODULES}" >> "$GITHUB_OUTPUT"
+
+  versions-updated:
+    needs: modules-changed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate module version bump
+        shell: bash
+        run: |
+          CHANGED_FILES="${{ needs.modules-changed.outputs.files }}"
+          CHANGED_MODULES="${{ needs.modules-changed.outputs.modules }}"
+
+          if [ -z "$CHANGED_MODULES" ]; then
+            echo "No modules changed"
+            exit 0
+          fi
+
+          EXIT_CODE=0
+          for MODULE in ${CHANGED_MODULES}; do
+            if [[ ! "$CHANGED_FILES" =~ "${MODULE}/MODULE" ]]; then
+              echo "Module not updated: ${MODULE}"
+              EXIT_CODE=1
+            fi
+          done
+
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            exit 1
+          fi
+
+  build-module-metadata:
+    needs: modules-changed
+    runs-on: ubuntu-latest
+    if: ${{ needs.modules-changed.outputs.modules != '' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build matrix
+        id: set-matrix
+        shell: bash
+        run: |
+          MODULES="${{ needs.modules-changed.outputs.modules }}"
+          METADATA="$(find ${MODULES} -name MODULE -print0 | xargs -0 -r cat | jq -s -c .)"
+          echo "matrix=${METADATA}" >> "$GITHUB_OUTPUT"
+
+  register-and-publish-module:
+    needs: build-module-metadata
+    runs-on: ubuntu-latest
+    if: ${{ needs.build-module-metadata.outputs.matrix != '' }}
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.build-module-metadata.outputs.matrix) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Register module
+        uses: dcarbone/tfcloud-module-register-action@v0.1.0
+        with:
+          token: ${{ secrets.TF_TOKEN }}
+          organization: onestack
+          namespace: onestack
+          module-name: ${{ matrix.name }}
+          provider-name: ${{ matrix.provider }}
+
+      - name: Create artifact
+        id: artifact
+        shell: bash
+        run: |
+          ARTIFACT_FILE="$(pwd)/${{ matrix.name }}-${{ matrix.version }}.tar.gz"
+          tar -zcvf "${ARTIFACT_FILE}" -C "." .
+          echo "artifact_filepath=${ARTIFACT_FILE}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish module
+        uses: dcarbone/tfcloud-module-push-action@v0.2.0
+        with:
+          artifact-file: ${{ steps.artifact.outputs.artifact_filepath }}
+          token: ${{ secrets.TF_TOKEN }}
+          organization: onestack
+          namespace: onestack
+          module-name: ${{ matrix.name }}
+          provider-name: ${{ matrix.provider }}
+          version: ${{ matrix.version }}
