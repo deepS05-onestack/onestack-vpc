@@ -2,7 +2,7 @@
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.this.id
 
-  tags = merge(var.tags, { Name = "${var.tags["Project"]}-private-rt" })
+  tags = merge(var.tags, { Name = "${var.vpc_name}-private-rt" })
 }
 
 resource "aws_route_table_association" "backend_assoc" {

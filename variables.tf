@@ -1,3 +1,9 @@
+variable "vpc_name" {
+  description = "Name tag for the VPC"
+  type        = string
+  default     = "onestack-vpc"
+}
+
 variable "region" {
   description = "AWS region to create resources in"
   type        = string

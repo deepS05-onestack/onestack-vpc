@@ -4,7 +4,7 @@ resource "aws_subnet" "backend" {
   availability_zone       = var.backend_az
   map_public_ip_on_launch = false
 
-  tags = merge(var.tags, { Name = "${var.tags["Project"]}-backend-subnet" })
+  tags = merge(var.tags, { Name = "${var.vpc_name}-backend-subnet" })
 }
 
 resource "aws_subnet" "db" {
@@ -13,6 +13,6 @@ resource "aws_subnet" "db" {
   availability_zone       = var.db_az
   map_public_ip_on_launch = false
 
-  tags = merge(var.tags, { Name = "${var.tags["Project"]}-db-subnet" })
+  tags = merge(var.tags, { Name = "${var.vpc_name}-db-subnet" })
 }
 
