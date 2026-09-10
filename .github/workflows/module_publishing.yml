@@ -123,8 +123,8 @@ jobs:
         uses: dcarbone/tfcloud-module-register-action@v0.1.0
         with:
           token: ${{ secrets.TF_TOKEN }}
-          organization: onestack
-          namespace: onestack
+          organization: deepS05-onestack
+          namespace: deepS05-onestack
           module-name: ${{ matrix.name }}
           provider-name: ${{ matrix.provider }}
 
@@ -142,8 +142,8 @@ jobs:
         with:
           artifact-file: ${{ steps.artifact.outputs.artifact_filepath }}
           token: ${{ secrets.TF_TOKEN }}
-          organization: onestack
-          namespace: onestack
+          organization: deepS05-onestack
+          namespace: deepS05-onestack
           module-name: ${{ matrix.name }}
           provider-name: ${{ matrix.provider }}
           version: ${{ matrix.version }}
