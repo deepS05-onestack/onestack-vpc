@@ -88,6 +88,8 @@ jobs:
     needs: modules-changed
     runs-on: ubuntu-latest
     if: ${{ needs.modules-changed.outputs.modules != '' }}
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
