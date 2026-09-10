@@ -133,11 +133,8 @@ jobs:
         shell: bash
         run: |
           ARTIFACT_FILE="$(pwd)/${{ matrix.name }}-${{ matrix.version }}.tar.gz"
-          tar -czvf "${ARTIFACT_FILE}" \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='.gitignore' \
-            -C "." .
+          MODULE_FILES=$(find . -maxdepth 1 -mindepth 1 ! -name '.git' ! -name '.github' ! -name '.gitignore' -printf '%f ')
+          tar -czf "${ARTIFACT_FILE}" -C "." ${MODULE_FILES}
           echo "artifact_filepath=${ARTIFACT_FILE}" >> "$GITHUB_OUTPUT"
 
       - name: Publish module
